@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gerador de Imagens de Versículos — @elizeu.dev</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <!-- Fonte Merriweather -->
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #111827;
+      --muted: #9aa4b2;
+      --text: #e5e7eb;
+      --accent: #22d3ee;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: 'Merriweather', serif;
+      background: radial-gradient(1200px 1200px at 10% -10%, #11203a, transparent),
+                  radial-gradient(1000px 800px at 110% 10%, #1a1032, transparent), var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 16px 8px;
+      text-align: center;
+    }
+    header h1 { margin: 0; font-size: 1.6rem; letter-spacing: .3px; }
+    header p { margin: 6px 0 0; color: var(--muted); font-size: .95rem; }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 980px) {
+      .container { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+      padding: 16px;
+    }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row.wrap { flex-wrap: wrap; }
+    label { font-weight: 600; font-size: .95rem; color: var(--muted); }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 12px 14px;
+      background: #0f1623;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      outline: none;
+      font-family: 'Merriweather', serif;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, #1b2a41, #162236);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .04s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .btn:hover { box-shadow: 0 8px 24px rgba(34, 211, 238, .18); }
+    .btn:active { transform: translateY(1px); }
+    .btn.secondary { background: #111827; }
+    .hint { color: var(--muted); font-size: .9rem; }
+    .pill { font-size: .8rem; color: #03181c; background: var(--accent); font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+    canvas, .preview-img {
+      width: 100%;
+      height: auto;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: #0f1623;
+    }
+    footer { text-align: center; padding: 14px; color: var(--muted); font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gerador de Imagens de Versículos</h1>
+    <p>Versão Web — <span class="pill">Offline</span> — por @elizeu.dev</p>
+  </header>
+  <div class="container">
+    <section class="card">
+      <div class="row wrap" style="margin-bottom:12px">
+        <label for="bg" style="flex:1">Imagem de Fundo</label>
+        <input id="bg" type="file" accept="image/*" class="btn secondary" />
+      </div>
+      <p class="hint" id="bgLabel">Nenhuma imagem selecionada</p>
+      <div style="margin-top:14px">
+        <label for="message">Versículo (texto)</label>
+        <textarea id="message" placeholder="Digite o versículo..."></textarea>
+      </div>
+      <div style="margin-top:14px">
+        <label for="sender">Referência</label>
+        <input id="sender" type="text" placeholder="Ex.: João 3:16" />
+      </div>
+      <div style="margin-top:14px">
+        <label for="signature">Assinatura (@...)</label>
+        <input id="signature" type="text" placeholder="Ex.: @meuusuario" />
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button id="btnPreview" class="btn">Gerar Preview</button>
+        <button id="btnDownload" class="btn secondary">Salvar PNG</button>
+      </div>
+      <p class="hint" style="margin-top:10px">A imagem é gerada em 1080×1920 (Stories).</p>
+    </section>
+    <section class="card">
+      <canvas id="canvas" width="1080" height="1920" style="display:none"></canvas>
+      <img id="preview" class="preview-img" alt="Preview aparecerá aqui" />
+    </section>
+  </div>
+  <footer>© <span id="year"></span> — @elizeu.dev</footer>
+  <script>
+    const OUTPUT_WIDTH = 1080;
+    const OUTPUT_HEIGHT = 1920;
+    const inputFile = document.getElementById('bg');
+    const bgLabel = document.getElementById('bgLabel');
+    const txtMessage = document.getElementById('message');
+    const txtSender = document.getElementById('sender');
+    const txtSignature = document.getElementById('signature');
+    const btnPreview = document.getElementById('btnPreview');
+    const btnDownload = document.getElementById('btnDownload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const previewImg = document.getElementById('preview');
+    document.getElementById('year').textContent = new Date().getFullYear();
+    let bgImage = null;
+    function notify(msg) { alert(msg); }
+    function readImageFile(file) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = fr.result;
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+    function drawCover(image, blurPx = 12) {
+      const iw = image.width, ih = image.height;
+      const ir = iw / ih;
+      const tr = OUTPUT_WIDTH / OUTPUT_HEIGHT;
+      let dw, dh;
+      if (ir > tr) { dh = OUTPUT_HEIGHT; dw = Math.round(dh * ir); }
+      else { dw = OUTPUT_WIDTH; dh = Math.round(dw / ir); }
+      const dx = Math.round((OUTPUT_WIDTH - dw) / 2);
+      const dy = Math.round((OUTPUT_HEIGHT - dh) / 2);
+      ctx.clearRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+      ctx.filter = `blur(${blurPx}px)`;
+      ctx.drawImage(image, dx, dy, dw, dh);
+      ctx.filter = 'none';
+    }
+    function wrapText(ctx, text, maxWidth, font) {
+      ctx.font = font;
+      const words = (text || '').split(/\s+/).filter(Boolean);
+      if (!words.length) return [''];
+      const lines = [];
+      let line = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const test = line + ' ' + words[i];
+        const w = ctx.measureText(test).width;
+        if (w <= maxWidth) line = test; else { lines.push(line); line = words[i]; }
+      }
+      lines.push(line);
+      return lines;
+    }
+    function fitFont(ctx, text, maxW, maxH, start = 120, min = 40, family = "'Merriweather', serif") {
+      for (let size = start; size >= min; size -= 2) {
+        const font = `bold ${size}px ${family}`;
+        const lines = wrapText(ctx, text, maxW, font);
+        const metrics = ctx.measureText('Ay');
+        const lineH = (metrics.actualBoundingBoxAscent || size * 0.8) + (metrics.actualBoundingBoxDescent || size * 0.2) + 10;
+        const totalH = Math.round(lineH * lines.length);
+        if (totalH <= maxH) return { font, lines, lineH };
+      }
+      const font = `bold ${min}px ${family}`;
+      const lines = wrapText(ctx, text, maxW, font);
+      const metrics = ctx.measureText('Ay');
+      const lineH = (metrics.actualBoundingBoxAscent || min * 0.8) + (metrics.actualBoundingBoxDescent || min * 0.2) + 10;
+      return { font, lines, lineH };
+    }
+    function drawTextCentered(ctx, lines, lineH, yStart, font, fill = 'white') {
+      ctx.font = font;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for (const line of lines) {
+        ctx.fillStyle = 'rgba(0,0,0,.85)';
+        ctx.fillText(line, OUTPUT_WIDTH / 2 + 3, yStart + 3);
+        ctx.fillStyle = fill;
+        ctx.fillText(line, OUTPUT_WIDTH / 2, yStart);
+        yStart += lineH;
+      }
+      return yStart;
+    }
+    function render(message, sender, image) {
+      drawCover(image, 12);
+      const marginX = 80, marginY = 200;
+      const maxTextW = OUTPUT_WIDTH - 2 * marginX;
+      const maxTextH = OUTPUT_HEIGHT - 2 * marginY;
+      const fit = fitFont(ctx, message, maxTextW, maxTextH, 120, 40, "'Merriweather', serif");
+      const totalTextH = fit.lineH * fit.lines.length;
+      let y = Math.round((OUTPUT_HEIGHT - totalTextH) / 2);
+      y = drawTextCentered(ctx, fit.lines, fit.lineH, y, fit.font, 'rgba(255,255,255,1)');
+      const senderSize = Math.round(parseInt(fit.font.match(/\d+/)[0]) * 0.65);
+      const senderFont = `bold ${senderSize}px 'Merriweather', serif`;
+      const senderText = sender?.trim() ? `— ${sender.trim()}` : '— Anônimo';
+      ctx.font = senderFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(0,0,0,.85)';
+      ctx.fillText(senderText, OUTPUT_WIDTH/2 + 2, y + 2);
+      ctx.fillStyle = 'rgba(230,230,230,1)';
+      ctx.fillText(senderText, OUTPUT_WIDTH/2, y);
+      const footerFont = "bold 30px 'Merriweather', serif";
+      const footerText = txtSignature.value.trim() || '@elizeu.dev';
+      ctx.font = footerFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const fy = OUTPUT_HEIGHT - 30;
+      ctx.fillStyle = 'rgba(0,0,0,.85)';
+      ctx.fillText(footerText, OUTPUT_WIDTH/2 + 1, fy + 1);
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.fillText(footerText, OUTPUT_WIDTH/2, fy);
+      previewImg.src = canvas.toDataURL('image/png');
+    }
+    inputFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) { bgLabel.textContent = 'Nenhuma imagem selecionada'; bgImage = null; return; }
+      try {
+        bgImage = await readImageFile(file);
+        bgLabel.textContent = `Imagem: ${file.name}`;
+      } catch (err) {
+        console.error(err);
+        notify('Erro ao carregar a imagem.');
+      }
+    });
+    btnPreview.addEventListener('click', () => {
+      const message = (txtMessage.value || '').trim();
+      const sender = (txtSender.value || '').trim();
+      if (!message) return notify('Por favor, insira o versículo.');
+      if (!bgImage) return notify('Por favor, selecione uma imagem de fundo.');
+      render(message, sender, bgImage);
+    });
+    btnDownload.addEventListener('click', () => {
+      if (!previewImg.src) return notify('Gere um preview antes de salvar.');
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'versiculo.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  </script>
+</body>
+</html>
