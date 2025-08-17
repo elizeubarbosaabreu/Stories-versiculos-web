@@ -261,14 +261,26 @@
       render(message, sender, bgImage);
     });
     btnDownload.addEventListener('click', () => {
-      if (!previewImg.src) return notify('Gere um preview antes de salvar.');
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
-      a.download = 'versiculo.png';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
+    if (!previewImg.src || previewImg.src.startsWith('data:image/gif')) {
+        return notify('Gere um preview antes de salvar.');
+    }
+
+    // Pega a imagem do canvas no formato Base64
+    const imageData = canvas.toDataURL('image/png');
+
+    // Chame a função nativa 'saveImage' do Android, passando a imagem
+    if (window.Android) {
+        window.Android.saveImage(imageData);
+    } else {
+        // Fallback para navegadores web
+        const a = document.createElement('a');
+        a.href = imageData;
+        a.download = 'versiculo.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+});
   </script>
 </body>
 </html>
